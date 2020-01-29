@@ -8,10 +8,16 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.PWMVictorSPX;
+import edu.wpi.first.wpilibj.Timer;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -26,7 +32,10 @@ public class Robot extends TimedRobot {
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
   private DoubleSolenoid Hanger;
-  private XboxController xbox;
+  private XboxController xbox; 
+  private int autoX = 0;
+  private int autoY = 0;
+  private final DifferentialDrive m_robotDrive = new DifferentialDrive(new PWMVictorSPX(0),new PWMVictorSPX(1));
 
   /**
    * This function is run when the robot is first started up and should be
@@ -37,6 +46,7 @@ public class Robot extends TimedRobot {
     m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
+    
     
     Hanger = new DoubleSolenoid(0, 1); 
     xbox = new XboxController(0); 
@@ -93,12 +103,39 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
-   if (xbox.getAButton()) {
-   Hanger.set(DoubleSolenoid.Value.kForward);
-   }
-   else {
-     Hanger.set(DoubleSolenoid.Value.kReverse);
-   }
+    m_robotDrive.arcadeDrive(xbox.getY(), xbox.getX());
+
+    if (xbox.getAButton()) {
+    Hanger.set(DoubleSolenoid.Value.kForward);
+    }
+    else {
+      Hanger.set(DoubleSolenoid.Value.kReverse);
+    }
+    NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
+    NetworkTableEntry tx = table.getEntry("tx");
+    NetworkTableEntry tv = table.getEntry("tv");
+    NetworkTableEntry ty = table.getEntry("ty");
+    NetworkTableEntry ta = table.getEntry("ta");
+
+    //read values periodically
+    double x = tx.getDouble(0.0);
+    double y = ty.getDouble(0.0);
+    double area = ta.getDouble(0.0);
+
+    //post to smart dashboard periodically
+    SmartDashboard.putNumber("LimelightX", x);
+    SmartDashboard.putNumber("LimelightY", y);
+    SmartDashboard.putNumber("LimelightArea", area);
+    autoX = 0;
+    autoY = 0;
+
+    m_robotDrive.arcadeDrive(autoY, autoX);
+    
+    //if (xbox.getXButton()) {
+      //if(tv.getinteger()
+    //}
+
+
 
   }
 

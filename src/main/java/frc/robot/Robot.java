@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.command.PIDSubsystem;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -50,6 +51,7 @@ public class Robot extends TimedRobot {
     
     Hanger = new DoubleSolenoid(0, 1); 
     xbox = new XboxController(0); 
+    PID_Limelight pidx= new PID_Limelight();
   }
 
   /**
@@ -128,12 +130,14 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("LimelightArea", area);
     autoX = 0;
     autoY = 0;
-
+    int tvVal = 	tv.getDouble()
     m_robotDrive.arcadeDrive(autoY, autoX);
     
-    //if (xbox.getXButton()) {
-      //if(tv.getinteger()
-    //}
+    if (xbox.getXButton()) {
+      if(tvVal == 1.0){
+        system.out.println(tvVal)
+      }
+    }
 
 
 
@@ -145,4 +149,8 @@ public class Robot extends TimedRobot {
   @Override
   public void testPeriodic() {
   }
+  public DifferentialDrive getMotors() {
+    m_robotDrive
+  }
 }
+

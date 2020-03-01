@@ -6,7 +6,6 @@
 /*----------------------------------------------------------------------------*/
 
 package frc.robot;
-
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
@@ -19,6 +18,9 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.command.PIDSubsystem;
+import com.ctre.phoenix.motorcontrol.can.*;
+import edu.wpi.first.wpilibj.GenericHID.Hand;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -27,31 +29,68 @@ import edu.wpi.first.wpilibj.command.PIDSubsystem;
  * creating this project, you must also update the build.gradle file in the
  * project.
  */
+
 public class Robot extends TimedRobot {
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
   private DoubleSolenoid Hanger;
-  private XboxController xbox; 
+  private XboxController mainXboxController;
+  private XboxController intakeController; 
   private int autoX = 0;
   private int autoY = 0;
-  private final DifferentialDrive m_robotDrive = new DifferentialDrive(new PWMVictorSPX(0),new PWMVictorSPX(1));
+  WPI_VictorSPX _frontLeftMotor = new WPI_VictorSPX(2);
+  WPI_VictorSPX _frontRightMotor = new WPI_VictorSPX(4);
+  WPI_VictorSPX _leftFollower = new WPI_VictorSPX(1);
+  WPI_VictorSPX _rightFollower = new WPI_VictorSPX(3);
+  private final DifferentialDrive m_robotDrive = new DifferentialDrive(_frontLeftMotor,_frontRightMotor);
+  private final Limelight limelight = Limelight.getInstance();
+  WPI_VictorSPX intakeLeader = new WPI_VictorSPX(5);
+  WPI_VictorSPX intakeFollower = new WPI_VictorSPX(6);
+  WPI_TalonSRX shooterLeader = new WPI_TalonSRX(1);
+  WPI_TalonSRX shooterFollower = new WPI_TalonSRX(2);
 
   /**
    * This function is run when the robot is first started up and should be
    * used for any initialization code.
    */
+
   @Override
   public void robotInit() {
     m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
+
+    _rightFollower.follow(_frontRightMotor);
+    _leftFollower.follow(_frontLeftMotor); 
+    intakeFollower.follow(intakeLeader);
+    shooterFollower.follow(shooterLeader);
     
-    
+
     Hanger = new DoubleSolenoid(0, 1); 
-    xbox = new XboxController(0); 
-    PID_Limelight pidx= new PID_Limelight();
+    mainXboxController = new XboxController(0); 
+    intakeController = new XboxController(1);
+
+    _frontLeftMotor.setNeutralMode(NeutralMode.Brake);
+    _frontRightMotor.setNeutralMode(NeutralMode.Brake);
+    _rightFollower.setNeutralMode(NeutralMode.Brake);
+    _leftFollower.setNeutralMode(NeutralMode.Brake);
+    intakeFollower.setNeutralMode(NeutralMode.Brake);
+    intakeLeader.setNeutralMode(NeutralMode.Brake);
+    shooterFollower.setNeutralMode(NeutralMode.Coast);
+    shooterLeader.setNeutralMode(NeutralMode.Coast);
+
+    _frontLeftMotor.setInverted(false);
+    _frontRightMotor.setInverted(false);
+    _rightFollower.setInverted(false);
+    _leftFollower.setInverted(false);
+    intakeFollower.setInverted(true);
+    intakeLeader.setInverted(true);
+    shooterLeader.setInverted(false);
+    shooterFollower.setInverted(false);
+
+    //PID_Limelight pidx = new PID_Limelight();
   }
 
   /**
@@ -80,7 +119,6 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousInit() {
     m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
     System.out.println("Auto selected: " + m_autoSelected);
   }
 
@@ -105,14 +143,42 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
-    m_robotDrive.arcadeDrive(xbox.getY(), xbox.getX());
+    m_robotDrive.arcadeDrive(mainXboxController.getY(Hand.kLeft), mainXboxController.getX(Hand.kRight));
 
-    if (xbox.getAButton()) {
-    Hanger.set(DoubleSolenoid.Value.kForward);
+    if (mainXboxController.getAButton()) {
+      Hanger.set(DoubleSolenoid.Value.kForward);
     }
     else {
       Hanger.set(DoubleSolenoid.Value.kReverse);
     }
+
+    Double intakeLeft = intakeController.getTriggerAxis(Hand.kLeft);
+    Double intakeRight = intakeController.getTriggerAxis(Hand.kRight);
+    if(intakeLeft > 0 && intakeRight == 0){
+      intakeLeader.setInverted(false);
+      intakeFollower.setInverted(false);
+      intakeLeader.set(intakeController.getTriggerAxis(Hand.kLeft));
+    }
+    else {
+      intakeLeader.setInverted(true);
+      intakeFollower.setInverted(true);
+      intakeLeader.set(intakeController.getTriggerAxis(Hand.kRight));
+    }
+
+    Double mainXboxControllerLeft = mainXboxController.getTriggerAxis(Hand.kLeft);
+    Double mainXboxControllerRight = mainXboxController.getTriggerAxis(Hand.kRight);
+    if(mainXboxControllerLeft > 0 && mainXboxControllerRight == 0){
+      shooterLeader.setInverted(true);
+      shooterFollower.setInverted(true);
+      shooterLeader.set(mainXboxController.getTriggerAxis(Hand.kLeft));
+    }
+    else {
+      shooterLeader.setInverted(false);
+      shooterFollower.setInverted(false);
+      shooterLeader.set(mainXboxController.getTriggerAxis(Hand.kRight));
+    }
+
+    /*
     NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
     NetworkTableEntry tx = table.getEntry("tx");
     NetworkTableEntry tv = table.getEntry("tv");
@@ -128,29 +194,20 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("LimelightX", x);
     SmartDashboard.putNumber("LimelightY", y);
     SmartDashboard.putNumber("LimelightArea", area);
+    */
     autoX = 0;
     autoY = 0;
-    int tvVal = 	tv.getDouble()
-    m_robotDrive.arcadeDrive(autoY, autoX);
-    
-    if (xbox.getXButton()) {
-      if(tvVal == 1.0){
-        system.out.println(tvVal)
-      }
-    }
-
-
-
   }
 
   /**
    * This function is called periodically during test mode.
    */
-  @Override
+  /**@Override
   public void testPeriodic() {
   }
   public DifferentialDrive getMotors() {
-    m_robotDrive
-  }
+    
+  } */
 }
+
 
